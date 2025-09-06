@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.36414.22
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessTrackerApi", "FitnessTrackerApi\FitnessTrackerApi.csproj", "{B0ECDAE0-6119-4267-BC95-5333785B31CF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FitnessTrackerApi.Test", "FitnessTrackerApi.Test\FitnessTrackerApi.Test.csproj", "{F07619C5-40E9-43DA-8500-44361A725256}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B0ECDAE0-6119-4267-BC95-5333785B31CF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0ECDAE0-6119-4267-BC95-5333785B31CF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0ECDAE0-6119-4267-BC95-5333785B31CF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0ECDAE0-6119-4267-BC95-5333785B31CF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F07619C5-40E9-43DA-8500-44361A725256}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F07619C5-40E9-43DA-8500-44361A725256}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F07619C5-40E9-43DA-8500-44361A725256}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F07619C5-40E9-43DA-8500-44361A725256}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {B3B4BEAF-1E83-4886-B66C-A6073EFA9AEC}
+	EndGlobalSection
+EndGlobal
