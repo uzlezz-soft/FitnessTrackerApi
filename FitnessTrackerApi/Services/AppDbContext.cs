@@ -28,14 +28,6 @@ public class AppDbContext : IdentityDbContext<User>
                     sets.ToJson();
                 });
             });
-
-            /*workout.OwnsMany(e => e.Exercises, exercise =>
-            {
-                exercise.OwnsMany(e => e.Sets, set =>
-                {
-                    set.WithOwner().HasForeignKey("ExerciseId");
-                });
-            });*/
         });
     }
 
