@@ -33,10 +33,10 @@ public class AuthServiceTests
         _tokenProviderMock.Setup(x => x.GenerateRefreshTokenAsync(It.IsAny<User>()))
             .ReturnsAsync((new RefreshToken(), "refresh"));
         _tokenProviderMock.Setup(x => x.GenerateAccessTokenAsync(It.IsAny<RefreshToken>(), false))
-            .ReturnsAsync(new Tokens("", "access"));
+            .ReturnsAsync(new TokensDto("", "access"));
 
         // Act
-        var result = await _authService.RegisterAsync(new UserRegister("test", "test@example.com", "123456"));
+        var result = await _authService.RegisterAsync(new UserRegisterDto("test", "test@example.com", "123456"));
 
         // Assert
         Assert.Equal("access", result.AccessToken);
@@ -52,7 +52,7 @@ public class AuthServiceTests
 
         // Act + Assert
         await Assert.ThrowsAsync<BadHttpRequestException>(() =>
-            _authService.LoginAsync(new UserLogin("test", "123")));
+            _authService.LoginAsync(new UserLoginDto("test", "123")));
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class AuthServiceTests
         var refreshToken = new RefreshToken();
         _tokenProviderMock.Setup(x => x.ValidateRefreshTokenAsync("token")).ReturnsAsync(refreshToken);
         _tokenProviderMock.Setup(x => x.GenerateAccessTokenAsync(refreshToken, true))
-            .ReturnsAsync(new Tokens("new-refresh", "new-access"));
+            .ReturnsAsync(new TokensDto("new-refresh", "new-access"));
 
         // Act
         var result = await _authService.GenerateAccessToken("token");

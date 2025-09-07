@@ -7,7 +7,7 @@ namespace FitnessTrackerApi.Services.Auth;
 
 public class AuthService(ILogger<AuthService> logger, UserManager<User> userManager, ITokenProvider tokenProvider) : IAuthService
 {
-    public async Task<Tokens> RegisterAsync(UserRegister request)
+    public async Task<TokensDto> RegisterAsync(UserRegisterDto request)
     {
         var user = new User { UserName = request.UserName, Email = request.Email };
         var result = await userManager.CreateAsync(user, request.Password);
@@ -27,7 +27,7 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
         return await GenerateTokens(user);
     }
 
-    public async Task<Tokens> LoginAsync(UserLogin request)
+    public async Task<TokensDto> LoginAsync(UserLoginDto request)
     {
         var user = await userManager.FindByNameAsync(request.UserName)
             ?? throw new BadHttpRequestException("Username or password invalid");
@@ -38,15 +38,15 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
         return await GenerateTokens(user);
     }
 
-    private async Task<Tokens> GenerateTokens(User user)
+    private async Task<TokensDto> GenerateTokens(User user)
     {
         var (refreshToken, refreshTokenString) = await tokenProvider.GenerateRefreshTokenAsync(user);
 
         var (_, accessToken) = await tokenProvider.GenerateAccessTokenAsync(refreshToken, false);
-        return new Tokens(refreshTokenString, accessToken);
+        return new TokensDto(refreshTokenString, accessToken);
     }
 
-    public async Task<Tokens> GenerateAccessToken(string refreshToken)
+    public async Task<TokensDto> GenerateAccessToken(string refreshToken)
     {
         var token = await tokenProvider.ValidateRefreshTokenAsync(refreshToken);
         return await tokenProvider.GenerateAccessTokenAsync(token);

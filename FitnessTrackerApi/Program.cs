@@ -1,8 +1,10 @@
 using FitnessTrackerApi.Configs;
+using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Endpoints;
 using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services;
 using FitnessTrackerApi.Services.Auth;
+using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -49,6 +51,8 @@ builder.Services.Configure<AuthConfig>(
 
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddValidatorsFromAssemblyContaining<UserLoginValidator>();
 
 var app = builder.Build();
 

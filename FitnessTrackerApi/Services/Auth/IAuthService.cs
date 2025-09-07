@@ -4,8 +4,8 @@ namespace FitnessTrackerApi.Services.Auth;
 
 public interface IAuthService
 {
-    Task<Tokens> RegisterAsync(UserRegister request);
-    Task<Tokens> LoginAsync(UserLogin login);
-    Task<Tokens> GenerateAccessToken(string refreshToken);
+    Task<TokensDto> RegisterAsync(UserRegisterDto request);
+    Task<TokensDto> LoginAsync(UserLoginDto login);
+    Task<TokensDto> GenerateAccessToken(string refreshToken);
     Task LogOutAsync(string refreshToken);
 }

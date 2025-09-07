@@ -17,7 +17,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
     private readonly AuthConfig _config = authOptions.Value;
     private readonly SymmetricSecurityKey _key = new(Encoding.UTF8.GetBytes(authOptions.Value.Key));
 
-    public async Task<Tokens> GenerateAccessTokenAsync(RefreshToken token, bool revokeRefreshToken = true)
+    public async Task<TokensDto> GenerateAccessTokenAsync(RefreshToken token, bool revokeRefreshToken = true)
     {
         Claim[] claims = [
             new(ClaimTypes.NameIdentifier, token.User.Id),
