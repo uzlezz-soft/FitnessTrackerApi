@@ -8,5 +8,6 @@ public interface ITokenProvider
     Task<(RefreshToken, string Token)> GenerateRefreshTokenAsync(User user);
     Task<Tokens> GenerateAccessTokenAsync(RefreshToken token, bool revokeRefreshToken = true);
 
-    Task<RefreshToken> ValidateRefreshToken(string refreshToken);
+    Task<RefreshToken> ValidateRefreshTokenAsync(string refreshToken);
+    Task RevokeAsync(string refreshToken);
 }

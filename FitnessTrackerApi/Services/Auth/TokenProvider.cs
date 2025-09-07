@@ -72,7 +72,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         return (token, tokenString);
     }
 
-    public async Task<RefreshToken> ValidateRefreshToken(string refreshToken)
+    public async Task<RefreshToken> ValidateRefreshTokenAsync(string refreshToken)
     {
         string tokenHash;
         try
@@ -91,10 +91,29 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
                 && x.Status == RefreshTokenStatus.Valid
                 && x.ValidUntil > DateTime.UtcNow);
 
-        if (token == null)
-            throw new InvalidRefreshTokenException();
+        return token ?? throw new InvalidRefreshTokenException();
+    }
 
-        return token;
+    public async Task RevokeAsync(string refreshToken)
+    {
+        string tokenHash;
+        try
+        {
+            tokenHash = HashToken(Convert.FromBase64String(refreshToken));
+        }
+        catch (FormatException)
+        {
+            throw new InvalidRefreshTokenException();
+        }
+
+        var token = await context.RefreshTokens
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x =>
+                x.Token == tokenHash
+                && x.Status == RefreshTokenStatus.Valid
+                && x.ValidUntil > DateTime.UtcNow) ?? throw new InvalidRefreshTokenException();
+        token.Status = RefreshTokenStatus.Revoked;
+        await context.SaveChangesAsync();
     }
 
     private static string HashToken(byte[] token) => Convert.ToBase64String(SHA256.HashData(token));

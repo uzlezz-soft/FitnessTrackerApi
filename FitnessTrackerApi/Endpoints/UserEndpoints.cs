@@ -19,6 +19,9 @@ public static class UserEndpoints
         builder.MapPost("/auth/refresh", GetAccessToken)
             .WithName("RefreshToken")
             .WithOpenApi();
+        builder.MapPost("/auth/logout", LogOut)
+            .WithName("LogOut")
+            .WithOpenApi();
     }
 
     private static async Task<Results<Created<Tokens>, Conflict, BadRequest>> Register(
@@ -60,6 +63,20 @@ public static class UserEndpoints
         {
             var token = await authService.GenerateAccessToken(refreshToken);
             return TypedResults.Ok(token);
+        }
+        catch (InvalidRefreshTokenException)
+        {
+            return TypedResults.Unauthorized();
+        }
+    }
+
+    private static async Task<Results<Ok, UnauthorizedHttpResult>> LogOut(
+        IAuthService authService, [FromBody] string refreshToken)
+    {
+        try
+        {
+            await authService.LogOutAsync(refreshToken);
+            return TypedResults.Ok();
         }
         catch (InvalidRefreshTokenException)
         {

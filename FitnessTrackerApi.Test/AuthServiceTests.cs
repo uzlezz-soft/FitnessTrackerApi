@@ -60,7 +60,7 @@ public class AuthServiceTests
     {
         // Arrange
         var refreshToken = new RefreshToken();
-        _tokenProviderMock.Setup(x => x.ValidateRefreshToken("token")).ReturnsAsync(refreshToken);
+        _tokenProviderMock.Setup(x => x.ValidateRefreshTokenAsync("token")).ReturnsAsync(refreshToken);
         _tokenProviderMock.Setup(x => x.GenerateAccessTokenAsync(refreshToken, true))
             .ReturnsAsync(new Tokens("new-refresh", "new-access"));
 
@@ -69,7 +69,22 @@ public class AuthServiceTests
 
         // Assert
         Assert.Equal("new-access", result.AccessToken);
-        _tokenProviderMock.Verify(x => x.ValidateRefreshToken("token"), Times.Once);
+        _tokenProviderMock.Verify(x => x.ValidateRefreshTokenAsync("token"), Times.Once);
     }
+
+    [Fact]
+    public async Task LogOut_ShouldCallRevokeAsync()
+    {
+        // Arrange
+        const string refreshToken = "refresh-token";
+        _tokenProviderMock.Setup(x => x.RevokeAsync(refreshToken)).Returns(Task.CompletedTask);
+
+        // Act
+        await _authService.LogOutAsync(refreshToken);
+
+        // Assert
+        _tokenProviderMock.Verify(x => x.RevokeAsync(refreshToken), Times.Once);
+    }
+
 
 }

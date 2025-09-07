@@ -61,7 +61,7 @@ public class TokenProviderTests
         var (refreshToken, tokenString) = await _tokenProvider.GenerateRefreshTokenAsync(user);
 
         // Act
-        var validated = await _tokenProvider.ValidateRefreshToken(tokenString);
+        var validated = await _tokenProvider.ValidateRefreshTokenAsync(tokenString);
 
         // Assert
         Assert.Equal(refreshToken.Token, validated.Token);
@@ -72,7 +72,7 @@ public class TokenProviderTests
     public async Task ValidateRefreshToken_ShouldThrowWhenInvalid()
     {
         // Act + Assert
-        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _tokenProvider.ValidateRefreshToken("invalid-refresh-token"));
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _tokenProvider.ValidateRefreshTokenAsync("invalid-refresh-token"));
     }
 
     [Fact]
@@ -89,5 +89,37 @@ public class TokenProviderTests
         Assert.NotEmpty(tokens.AccessToken);
         Assert.NotEmpty(tokens.RefreshToken);
         Assert.Equal(RefreshTokenStatus.Revoked, refreshToken.Status);
+    }
+
+    [Fact]
+    public async Task RevokeAsync_ShouldRevokeValidToken()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        var (refreshToken, tokenString) = await _tokenProvider.GenerateRefreshTokenAsync(user);
+
+        // Act
+        await _tokenProvider.RevokeAsync(tokenString);
+
+        // Assert
+        var revoked = await _context.RefreshTokens.FirstAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(RefreshTokenStatus.Revoked, revoked.Status);
+    }
+
+    [Fact]
+    public async Task RevokeAsync_ShouldThrowWhenInvalidBase64()
+    {
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _tokenProvider.RevokeAsync("not-base64"));
+    }
+
+    [Fact]
+    public async Task RevokeAsync_ShouldThrowWhenTokenNotFound()
+    {
+        // Arrange
+        var randomToken = Convert.ToBase64String(Guid.NewGuid().ToByteArray());
+
+        // Act + Assert
+        await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _tokenProvider.RevokeAsync(randomToken));
     }
 }

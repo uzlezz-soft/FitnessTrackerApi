@@ -48,7 +48,12 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
 
     public async Task<Tokens> GenerateAccessToken(string refreshToken)
     {
-        var token = await tokenProvider.ValidateRefreshToken(refreshToken);
+        var token = await tokenProvider.ValidateRefreshTokenAsync(refreshToken);
         return await tokenProvider.GenerateAccessTokenAsync(token);
+    }
+
+    public async Task LogOutAsync(string refreshToken)
+    {
+        await tokenProvider.RevokeAsync(refreshToken);
     }
 }
