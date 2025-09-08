@@ -18,10 +18,12 @@ public class TokenProviderTests
     public TokenProviderTests()
     {
         var contextOptions = new DbContextOptionsBuilder<AppDbContext>()
-            .UseInMemoryDatabase(Guid.NewGuid().ToString())
+            .UseSqlite("DataSource=:memory:")
             .Options;
 
         _context = new AppDbContext(contextOptions);
+        _context.Database.OpenConnection();
+        _context.Database.EnsureCreated();
 
         var authConfig = new AuthConfig
         {
@@ -29,7 +31,9 @@ public class TokenProviderTests
             Audience = "TestAudience",
             Key = "SuperSecretKey1234567890_=+-!@#$%^",
             AccessLifetimeMinutes = 5,
-            RefreshLifetimeHours = 1
+            RefreshLifetimeHours = 1,
+            RefreshTokenCleanupAfterDays = 60,
+            RefreshTokenCleanupIntervalMinutes = 60
         };
 
         var options = Options.Create(authConfig);
@@ -121,5 +125,27 @@ public class TokenProviderTests
 
         // Act + Assert
         await Assert.ThrowsAsync<InvalidRefreshTokenException>(() => _tokenProvider.RevokeAsync(randomToken));
+    }
+
+    [Fact]
+    public async Task CleanupOldTokens_ShouldDeleteOneToken()
+    {
+        // Arrange
+        var user = new User { Id = Guid.NewGuid().ToString(), UserName = "test" };
+        RefreshToken[] tokens = [
+            new(){ Token = "abababab", User = user, Status = RefreshTokenStatus.Revoked, ValidUntil = DateTime.UtcNow.AddDays(-90) },
+            new(){ Token = "bcbcbcbc", User = user, Status = RefreshTokenStatus.Valid, ValidUntil = DateTime.UtcNow.AddDays(-45) },
+            new(){ Token = "cdcdcdcd", User = user, Status = RefreshTokenStatus.Revoked, ValidUntil = DateTime.UtcNow.AddDays(20) },
+        ];
+        await _context.RefreshTokens.AddRangeAsync(tokens);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        await _tokenProvider.CleanupOldTokensAsync(TestContext.Current.CancellationToken);
+
+        // Assert
+        Assert.Equal(2, _context.RefreshTokens.Count());
+        Assert.NotNull(_context.RefreshTokens.FirstOrDefault(x => x.Token == "bcbcbcbc"));
+        Assert.NotNull(_context.RefreshTokens.FirstOrDefault(x => x.Token == "cdcdcdcd"));
     }
 }

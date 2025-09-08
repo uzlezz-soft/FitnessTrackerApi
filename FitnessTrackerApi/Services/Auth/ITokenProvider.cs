@@ -10,4 +10,6 @@ public interface ITokenProvider
 
     Task<RefreshToken> ValidateRefreshTokenAsync(string refreshToken);
     Task RevokeAsync(string refreshToken);
+
+    Task<int> CleanupOldTokensAsync(CancellationToken stoppingToken);
 }

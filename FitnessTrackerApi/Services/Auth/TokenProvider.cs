@@ -116,5 +116,14 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         await context.SaveChangesAsync();
     }
 
+    public async Task<int> CleanupOldTokensAsync(CancellationToken stoppingToken)
+    {
+        var cutoffDate = DateTime.UtcNow - TimeSpan.FromDays(_config.RefreshTokenCleanupAfterDays);
+        return await context.RefreshTokens
+            .Where(x => x.Status != RefreshTokenStatus.Valid
+                && x.ValidUntil <= cutoffDate)
+            .ExecuteDeleteAsync(stoppingToken);
+    }
+
     private static string HashToken(byte[] token) => Convert.ToBase64String(SHA256.HashData(token));
 }

@@ -52,6 +52,8 @@ builder.Services.Configure<AuthConfig>(
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddHostedService<RefreshTokenCleanupHostedService>();
+
 builder.Services.AddValidatorsFromAssemblyContaining<UserLoginValidator>();
 
 var app = builder.Build();
