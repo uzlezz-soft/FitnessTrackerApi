@@ -1,4 +1,5 @@
 ﻿using FluentValidation;
+using System.Security.Cryptography;
 
 namespace FitnessTrackerApi.DTOs;
 
@@ -49,7 +50,7 @@ public class RefreshTokenValidator : AbstractValidator<RefreshTokenDto>
             .NotEmpty()
             .Custom((x, context) =>
             {
-                Span<byte> token = stackalloc byte[32];
+                Span<byte> token = stackalloc byte[SHA256.HashSizeInBytes];
                 if (!Convert.TryFromBase64String(x, token, out int bytesWritten) || bytesWritten < token.Length)
                     context.AddFailure("Token is malformed");
             });
