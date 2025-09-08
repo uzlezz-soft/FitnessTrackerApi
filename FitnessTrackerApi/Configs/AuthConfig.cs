@@ -10,4 +10,6 @@ public class AuthConfig
     public required string Audience { get; set; }
     public required int AccessLifetimeMinutes { get; set; }
     public required int RefreshLifetimeHours { get; set; }
+    public required int RefreshTokenCleanupAfterDays { get; set; }
+    public required int RefreshTokenCleanupIntervalMinutes { get; set; }
 }

@@ -50,6 +50,8 @@ builder.Services.Configure<AuthConfig>(
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddHostedService<RefreshTokenCleanupHostedService>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
