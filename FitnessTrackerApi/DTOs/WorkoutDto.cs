@@ -8,6 +8,7 @@ public record SetDto(int Reps, double Weight);
 public record ExerciseDto(string Name, IEnumerable<SetDto> Sets);
 
 public record WorkoutCreateDto(WorkoutType Type, IEnumerable<ExerciseDto> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);
+public record WorkoutUpdateDto(WorkoutType Type, IEnumerable<ExerciseDto> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);
 
 public class SetValidator : AbstractValidator<SetDto>
 {
@@ -27,9 +28,21 @@ public class ExerciseValidator : AbstractValidator<ExerciseDto>
     }
 }
 
-public class WorkoutValidator : AbstractValidator<WorkoutCreateDto>
+public class WorkoutCreateValidator : AbstractValidator<WorkoutCreateDto>
 {
-    public WorkoutValidator()
+    public WorkoutCreateValidator()
+    {
+        RuleFor(x => x.Type).IsInEnum();
+        RuleForEach(x => x.Exercises).SetValidator(new ExerciseValidator());
+        RuleFor(x => x.Duration).GreaterThan(TimeSpan.Zero);
+        RuleFor(x => x.CaloriesBurned).GreaterThan(0);
+        RuleFor(x => x.WorkoutDate).Must(date => date.ToUniversalTime() <= DateTime.UtcNow);
+    }
+}
+
+public class WorkoutUpdateValidator : AbstractValidator<WorkoutUpdateDto>
+{
+    public WorkoutUpdateValidator()
     {
         RuleFor(x => x.Type).IsInEnum();
         RuleForEach(x => x.Exercises).SetValidator(new ExerciseValidator());
@@ -40,4 +53,4 @@ public class WorkoutValidator : AbstractValidator<WorkoutCreateDto>
 }
 
 public record CreatedWorkoutDto(string Id);
-public record WorkoutDto(string Id, DateTime CreatedAt, WorkoutType Type, IEnumerable<Exercise> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);
+public record WorkoutDto(string Id, DateTime CreatedAt, WorkoutType Type, IEnumerable<ExerciseDto> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);

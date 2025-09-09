@@ -7,4 +7,7 @@ public static class SetMapper
 {
     public static Set ToModel(this SetDto dto)
         => new() { Reps = dto.Reps, Weight = dto.Weight };
+
+    public static SetDto ToDto(this Set set)
+        => new(set.Reps, set.Weight);
 }

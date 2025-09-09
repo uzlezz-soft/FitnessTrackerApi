@@ -23,6 +23,30 @@ public class WorkoutService(AppDbContext context, ILogger<WorkoutService> logger
     public async Task<IEnumerable<WorkoutDto>> GetWorkoutsAsync(string userId)
         => await context.Workouts
         .Where(x => x.User.Id == userId)
-        .Select(x => x.ToWorkout())
+        .Select(x => x.ToDto())
         .ToArrayAsync();
+
+    public async Task<WorkoutDto> GetWorkoutAsync(string userId, string workoutId)
+        => await context.Workouts
+        .Where(x => x.Id == workoutId && x.User.Id == userId)
+        .Select(x => x.ToDto())
+        .FirstOrDefaultAsync() ?? throw new WorkoutNotFoundException();
+
+    public async Task UpdateWorkoutAsync(string userId, string workoutId, WorkoutUpdateDto dto)
+    {
+        var workout = await context.Workouts
+            .FirstOrDefaultAsync(x => x.Id == workoutId && x.User.Id == userId)
+            ?? throw new WorkoutNotFoundException();
+
+        workout.PopulateFrom(dto);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task DeleteWorkoutAsync(string userId, string workoutId)
+    {
+        var numDeleted = await context.Workouts
+            .Where(x => x.Id == workoutId && x.User.Id == userId)
+            .ExecuteDeleteAsync();
+        if (numDeleted != 1) throw new WorkoutNotFoundException();
+    }
 }
