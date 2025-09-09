@@ -13,13 +13,13 @@ public static class UserEndpoints
         builder.MapPost("/users", Register)
             .WithName("Register")
             .WithOpenApi();
-        builder.MapPost("/auth/login", Login)
+        builder.MapPost("/sessions", Login)
             .WithName("Login")
             .WithOpenApi();
-        builder.MapPost("/auth/refresh", GetAccessToken)
+        builder.MapPut("/sessions/{refreshToken}", GetAccessToken)
             .WithName("RefreshToken")
             .WithOpenApi();
-        builder.MapPost("/auth/logout", LogOut)
+        builder.MapDelete("/sessions/{refreshToken}", LogOut)
             .WithName("LogOut")
             .WithOpenApi();
     }
@@ -30,7 +30,7 @@ public static class UserEndpoints
         try
         {
             var tokens = await authService.RegisterAsync(request);
-            return TypedResults.Created("/auth/login", tokens);
+            return TypedResults.Created("/sessions", tokens);
         }
         catch (DuplicateUserException)
         {
@@ -57,7 +57,7 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<Ok<Tokens>, UnauthorizedHttpResult>> GetAccessToken(
-        IAuthService authService, [FromBody] string refreshToken)
+        IAuthService authService, [FromRoute] string refreshToken)
     {
         try
         {
@@ -71,7 +71,7 @@ public static class UserEndpoints
     }
 
     private static async Task<Results<Ok, UnauthorizedHttpResult>> LogOut(
-        IAuthService authService, [FromBody] string refreshToken)
+        IAuthService authService, [FromRoute] string refreshToken)
     {
         try
         {
