@@ -40,6 +40,7 @@ public class WorkoutService(AppDbContext context, ILogger<WorkoutService> logger
 
         workout.PopulateFrom(dto);
         await context.SaveChangesAsync();
+        logger.LogInformation("Updated workout {WorkoutId} for user {UserId}", workoutId, userId);
     }
 
     public async Task DeleteWorkoutAsync(string userId, string workoutId)
@@ -48,5 +49,6 @@ public class WorkoutService(AppDbContext context, ILogger<WorkoutService> logger
             .Where(x => x.Id == workoutId && x.User.Id == userId)
             .ExecuteDeleteAsync();
         if (numDeleted != 1) throw new WorkoutNotFoundException();
+        logger.LogInformation("Deleted workout {WorkoutId} for user {UserId}", workoutId, userId);
     }
 }
