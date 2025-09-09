@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FitnessTrackerApi.Services.Workout;
 
-public class WorkoutService(AppDbContext context, ILogger<WorkoutService> logger) : IWorkoutService
+public class WorkoutService(AppDbContext context, IPhotoService photoService, ILogger<WorkoutService> logger) : IWorkoutService
 {
     public async Task<CreatedWorkoutDto> RecordWorkoutAsync(string userId, WorkoutCreateDto model)
     {
@@ -45,10 +45,43 @@ public class WorkoutService(AppDbContext context, ILogger<WorkoutService> logger
 
     public async Task DeleteWorkoutAsync(string userId, string workoutId)
     {
-        var numDeleted = await context.Workouts
-            .Where(x => x.Id == workoutId && x.User.Id == userId)
-            .ExecuteDeleteAsync();
-        if (numDeleted != 1) throw new WorkoutNotFoundException();
+        // Can't use ExecuteDeleteAsync as there is a known bug with owned entities
+        // This bug is fixed in EF Core 9.0+, but oh well
+        // https://github.com/dotnet/efcore/issues/32823
+
+        var workout = await context.Workouts
+            .FirstOrDefaultAsync(x => x.Id == workoutId && x.User.Id == userId)
+            ?? throw new WorkoutNotFoundException();
+
+        context.Workouts.Remove(workout);
+        await context.SaveChangesAsync();
+
         logger.LogInformation("Deleted workout {WorkoutId} for user {UserId}", workoutId, userId);
+    }
+
+    public async Task<WorkoutPhotosDto> GetWorkoutProgressPhotosAsync(string userId, string workoutId)
+        => (await context.Workouts
+            .Select(x => new { x.Id, UserId = x.User.Id, Photos = x.ToPhotos() })
+            .FirstOrDefaultAsync(x => x.Id == workoutId && x.UserId == userId))?.Photos
+            ?? throw new WorkoutNotFoundException();
+
+    public async Task UploadPhotoAsync(string userId, string workoutId, IFormFile file)
+    {
+        var workout = await context.Workouts
+            .FirstOrDefaultAsync(x => x.Id == workoutId && x.User.Id == userId)
+            ?? throw new WorkoutNotFoundException();
+
+        var id = await photoService.UploadAsync(file);
+        workout.ProgressPhotos.Add(id);
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<(string name, Stream stream)> GetPhotoAsync(string userId, string workoutId, string photoId)
+    {
+        var workout = await context.Workouts
+            .FirstOrDefaultAsync(x => x.Id == workoutId && x.User.Id == userId)
+            ?? throw new WorkoutNotFoundException();
+
+        return await photoService.GetAsync(photoId);
     }
 }

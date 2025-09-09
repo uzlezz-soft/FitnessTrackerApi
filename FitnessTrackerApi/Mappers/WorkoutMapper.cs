@@ -1,6 +1,5 @@
 using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Models;
-using Microsoft.EntityFrameworkCore.Query;
 
 namespace FitnessTrackerApi.Mappers;
 
@@ -32,4 +31,7 @@ public static class WorkoutMapper
         workout.WorkoutDate = dto.WorkoutDate;
         return workout;
     }
+
+    public static WorkoutPhotosDto ToPhotos(this Workout workout)
+        => new(workout.ProgressPhotos);
 }

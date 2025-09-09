@@ -1,10 +1,12 @@
-﻿using System.Security.Claims;
-using FitnessTrackerApi.DTOs;
+﻿using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
+using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services.Workout;
 using FluentValidation;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace FitnessTrackerApi.Endpoints;
 
@@ -32,6 +34,21 @@ public static class WorkoutEndpoints
             .WithName("Delete")
             .WithOpenApi()
             .RequireAuthorization();
+
+        builder.MapGet("/workouts/{workoutId}/photos", GetPhotos)
+            .WithName("GetPhotos")
+            .WithOpenApi()
+            .RequireAuthorization();
+        builder.MapGet("/workouts/{workoutId}/photos/{photoId}", GetPhoto)
+            .WithName("GetPhoto")
+            .WithOpenApi()
+            .RequireAuthorization();
+        builder.MapPost("/workouts/{workoutId}/photos", UploadPhoto)
+            .WithName("UploadPhoto")
+            // https://github.com/dotnet/aspnetcore/issues/47526
+            //.WithOpenApi()
+            .RequireAuthorization()
+            .DisableAntiforgery();
     }
 
     private static async Task<Results<Created<CreatedWorkoutDto>, BadRequest, ValidationProblem>> Record(
@@ -105,6 +122,57 @@ public static class WorkoutEndpoints
         {
             await workoutService.DeleteWorkoutAsync(userId, workoutId);
             return TypedResults.Ok();
+        }
+        catch (WorkoutNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+    }
+
+    private static async Task<Results<Ok<WorkoutPhotosDto>, NotFound>> GetPhotos(
+        IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId)
+    {
+        var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
+
+        try
+        {
+            return TypedResults.Ok(await workoutService.GetWorkoutProgressPhotosAsync(userId, workoutId));
+        }
+        catch (WorkoutNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+    }
+
+    private static async Task<Results<Ok, NotFound, BadRequest>> UploadPhoto(
+        IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId, IFormFile formFile)
+    {
+        var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
+
+        try
+        {
+            await workoutService.UploadPhotoAsync(userId, workoutId, formFile);
+            return TypedResults.Ok();
+        }
+        catch (WorkoutNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+    }
+
+    public static async Task<Results<FileContentHttpResult, NotFound>> GetPhoto(
+        IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId, [FromRoute] string photoId)
+    {
+        var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
+
+        try
+        {
+            var (name, stream) = await workoutService.GetPhotoAsync(userId, workoutId, photoId);
+
+            using var memoryStream = new MemoryStream();
+            stream.CopyTo(memoryStream);
+
+            return TypedResults.File(memoryStream.ToArray(), contentType: "image/webp", fileDownloadName: name);
         }
         catch (WorkoutNotFoundException)
         {

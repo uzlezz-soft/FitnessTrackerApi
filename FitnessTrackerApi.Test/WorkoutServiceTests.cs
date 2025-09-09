@@ -189,8 +189,7 @@ public class WorkoutServiceTests
             _service.UpdateWorkoutAsync("test", "missing", dto));
     }
 
-    // FIXME: bug in SQLite, and does not work in In-Memory
-    /*[Fact]
+    [Fact]
     public async Task DeleteWorkout_ShouldRemoveWorkout()
     {
         // Act
@@ -210,11 +209,11 @@ public class WorkoutServiceTests
         Assert.Empty(_context.Workouts);
     }
 
-    //[Fact]
+    [Fact]
     public async Task DeleteWorkoutAsync_ShouldThrow_WhenNotFound()
     {
         // Act + Assert
         await Assert.ThrowsAsync<WorkoutNotFoundException>(() =>
             _service.DeleteWorkoutAsync("test", "missing"));
-    }*/
+    }
 }

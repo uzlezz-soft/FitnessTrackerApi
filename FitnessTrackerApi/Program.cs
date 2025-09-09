@@ -85,9 +85,16 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.Configure<AuthConfig>(
     builder.Configuration.GetSection(AuthConfig.SectionName));
+builder.Services.Configure<ImagesConfig>(
+    builder.Configuration.GetSection(ImagesConfig.SectionName));
+builder.Services.Configure<FileSystemImageRepositoryConfig>(
+    builder.Configuration.GetSection(FileSystemImageRepositoryConfig.SectionName));
 
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+
+builder.Services.AddSingleton<IImageRepository, FileSystemImageRepository>();
+builder.Services.AddScoped<IPhotoService, PhotoService>();
 
 builder.Services.AddScoped<IWorkoutService, WorkoutService>();
 

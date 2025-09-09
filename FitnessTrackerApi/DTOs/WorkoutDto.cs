@@ -54,3 +54,5 @@ public class WorkoutUpdateValidator : AbstractValidator<WorkoutUpdateDto>
 
 public record CreatedWorkoutDto(string Id);
 public record WorkoutDto(string Id, DateTime CreatedAt, WorkoutType Type, IEnumerable<ExerciseDto> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);
+
+public record WorkoutPhotosDto(IEnumerable<string> Photos);
