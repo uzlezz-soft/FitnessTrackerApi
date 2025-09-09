@@ -5,7 +5,6 @@ namespace FitnessTrackerApi.DTOs;
 
 public record UserRegisterDto(string Email, string UserName, string Password);
 public record UserLoginDto(string UserName, string Password);
-public record RefreshTokenDto(string Token);
 
 public record TokensDto(string RefreshToken, string AccessToken);
 
@@ -39,20 +38,5 @@ public class UserLoginValidator : AbstractValidator<UserLoginDto>
     {
         RuleFor(x => x.UserName).UserName();
         RuleFor(x => x.Password).Password();
-    }
-}
-
-public class RefreshTokenValidator : AbstractValidator<RefreshTokenDto>
-{
-    public RefreshTokenValidator()
-    {
-        RuleFor(x => x.Token)
-            .NotEmpty()
-            .Custom((x, context) =>
-            {
-                Span<byte> token = stackalloc byte[SHA256.HashSizeInBytes];
-                if (!Convert.TryFromBase64String(x, token, out int bytesWritten) || bytesWritten < token.Length)
-                    context.AddFailure("Token is malformed");
-            });
     }
 }

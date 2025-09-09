@@ -56,7 +56,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
 
         var validUntil = DateTime.UtcNow.AddHours(_config.RefreshLifetimeHours);
 
-        var tokenString = Convert.ToBase64String(randomNumber);
+        var tokenString = Base64UrlEncoder.Encode(randomNumber);
         var hashed = HashToken(randomNumber);
 
         var token = new RefreshToken
@@ -77,7 +77,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         string tokenHash;
         try
         {
-            tokenHash = HashToken(Convert.FromBase64String(refreshToken));
+            tokenHash = HashToken(Base64UrlEncoder.DecodeBytes(refreshToken));
         }
         catch (FormatException)
         {
@@ -99,7 +99,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         string tokenHash;
         try
         {
-            tokenHash = HashToken(Convert.FromBase64String(refreshToken));
+            tokenHash = HashToken(Base64UrlEncoder.DecodeBytes(refreshToken));
         }
         catch (FormatException)
         {

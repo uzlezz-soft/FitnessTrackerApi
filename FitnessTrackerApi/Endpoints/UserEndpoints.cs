@@ -14,13 +14,13 @@ public static class UserEndpoints
         builder.MapPost("/users", Register)
             .WithName("Register")
             .WithOpenApi();
-        builder.MapPost("/auth/login", Login)
+        builder.MapPost("/sessions", Login)
             .WithName("Login")
             .WithOpenApi();
-        builder.MapPost("/auth/refresh", GetAccessToken)
+        builder.MapPut("/sessions/{refreshToken}", GetAccessToken)
             .WithName("RefreshToken")
             .WithOpenApi();
-        builder.MapPost("/auth/logout", LogOut)
+        builder.MapDelete("/sessions/{refreshToken}", LogOut)
             .WithName("LogOut")
             .WithOpenApi();
     }
@@ -35,7 +35,7 @@ public static class UserEndpoints
         try
         {
             var tokens = await authService.RegisterAsync(request);
-            return TypedResults.Created("/auth/login", tokens);
+            return TypedResults.Created("/sessions", tokens);
         }
         catch (DuplicateUserException)
         {
@@ -65,16 +65,12 @@ public static class UserEndpoints
         }
     }
 
-    private static async Task<Results<Ok<TokensDto>, UnauthorizedHttpResult, ValidationProblem>> GetAccessToken(
-        IAuthService authService, [FromBody] RefreshTokenDto refreshToken, IValidator<RefreshTokenDto> validator)
+    private static async Task<Results<Ok<TokensDto>, UnauthorizedHttpResult>> GetAccessToken(
+        IAuthService authService, [FromRoute] string refreshToken)
     {
-        var validationResult = await validator.ValidateAsync(refreshToken);
-        if (!validationResult.IsValid)
-            return TypedResults.ValidationProblem(validationResult.ToDictionary());
-
         try
         {
-            var token = await authService.GenerateAccessToken(refreshToken.Token);
+            var token = await authService.GenerateAccessToken(refreshToken);
             return TypedResults.Ok(token);
         }
         catch (InvalidRefreshTokenException)
@@ -83,16 +79,12 @@ public static class UserEndpoints
         }
     }
 
-    private static async Task<Results<Ok, UnauthorizedHttpResult, ValidationProblem>> LogOut(
-        IAuthService authService, [FromBody] RefreshTokenDto refreshToken, IValidator<RefreshTokenDto> validator)
+    private static async Task<Results<Ok, UnauthorizedHttpResult>> LogOut(
+        IAuthService authService, [FromRoute] string refreshToken)
     {
-        var validationResult = await validator.ValidateAsync(refreshToken);
-        if (!validationResult.IsValid)
-            return TypedResults.ValidationProblem(validationResult.ToDictionary());
-
         try
         {
-            await authService.LogOutAsync(refreshToken.Token);
+            await authService.LogOutAsync(refreshToken);
             return TypedResults.Ok();
         }
         catch (InvalidRefreshTokenException)
