@@ -31,6 +31,8 @@ public class FileSystemImageRepository(
 
     public Task<(string name, Stream stream)> GetAsync(string id)
     {
+        if (!Guid.TryParse(id, out _)) throw new ImageNotFoundException();
+
         var (path, name) = GetPath(id);
         var fullPath = Path.Combine(path, name);
 

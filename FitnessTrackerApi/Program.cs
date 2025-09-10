@@ -1,6 +1,7 @@
 using FitnessTrackerApi.Configs;
 using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Endpoints;
+using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services;
 using FitnessTrackerApi.Services.Auth;
@@ -104,6 +105,8 @@ builder.Services.AddValidatorsFromAssemblyContaining<UserLoginValidator>();
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddExceptionHandler<ExceptionHandler>();
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -115,6 +118,8 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 app.UseAuthorization();
+
+app.UseExceptionHandler(_ => { });
 
 app.RegisterUserEndpoints();
 app.RegisterWorkoutEndpoints();

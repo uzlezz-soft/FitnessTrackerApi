@@ -1,7 +1,7 @@
 ﻿using FitnessTrackerApi.DTOs;
+using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services.Auth;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging;
 using Moq;
@@ -51,7 +51,7 @@ public class AuthServiceTests
         _userManagerMock.Setup(x => x.CheckPasswordAsync(user, "123")).ReturnsAsync(false);
 
         // Act + Assert
-        await Assert.ThrowsAsync<BadHttpRequestException>(() =>
+        await Assert.ThrowsAsync<InvalidCredentialsException>(() =>
             _authService.LoginAsync(new UserLoginDto("test", "123")));
     }
 

@@ -20,7 +20,7 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
                 throw new DuplicateUserException();
             if (error.Code == userManager.ErrorDescriber.InvalidUserName(request.UserName).Code)
                 throw new InvalidUserNameException();
-            throw new BadHttpRequestException("Invalid register attempt");
+            throw new InvalidRegisterAttemptException();
         }
 
         logger.LogInformation("User registered: {UserId} {UserName}", user.Id, user.UserName);
@@ -30,9 +30,9 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
     public async Task<TokensDto> LoginAsync(UserLoginDto request)
     {
         var user = await userManager.FindByNameAsync(request.UserName)
-            ?? throw new BadHttpRequestException("Username or password invalid");
-        if (!(await userManager.CheckPasswordAsync(user, request.Password)))
-            throw new BadHttpRequestException("Username or password invalid", 401);
+            ?? throw new InvalidCredentialsException();
+        if (!await userManager.CheckPasswordAsync(user, request.Password))
+            throw new InvalidCredentialsException();
 
         logger.LogInformation("User logged in: {UserId} {UserName}", user.Id, user.UserName);
         return await GenerateTokens(user);

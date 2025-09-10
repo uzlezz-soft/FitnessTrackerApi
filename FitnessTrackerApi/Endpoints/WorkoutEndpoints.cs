@@ -57,16 +57,8 @@ public static class WorkoutEndpoints
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
 
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
-
-        try
-        {
-            var workout = await workoutService.RecordWorkoutAsync(userId, request);
-            return TypedResults.Created($"/workouts/{workout.Id}", workout);
-        }
-        catch (UserNotFoundException)
-        {
-            return TypedResults.BadRequest();
-        }
+        var workout = await workoutService.RecordWorkoutAsync(userId, request);
+        return TypedResults.Created($"/workouts/{workout.Id}", workout);
     }
 
     private static async Task<Ok<IEnumerable<WorkoutDto>>> GetAll(
@@ -80,14 +72,7 @@ public static class WorkoutEndpoints
         IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId)
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
-        try
-        {
-            return TypedResults.Ok(await workoutService.GetWorkoutAsync(userId, workoutId));
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        return TypedResults.Ok(await workoutService.GetWorkoutAsync(userId, workoutId));
     }
 
     private static async Task<Results<Ok, NotFound, ValidationProblem>> Update(
@@ -99,16 +84,8 @@ public static class WorkoutEndpoints
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
 
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
-
-        try
-        {
-            await workoutService.UpdateWorkoutAsync(userId, workoutId, model);
-            return TypedResults.Ok();
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        await workoutService.UpdateWorkoutAsync(userId, workoutId, model);
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok, NotFound>> Delete(
@@ -116,30 +93,15 @@ public static class WorkoutEndpoints
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
 
-        try
-        {
-            await workoutService.DeleteWorkoutAsync(userId, workoutId);
-            return TypedResults.Ok();
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        await workoutService.DeleteWorkoutAsync(userId, workoutId);
+        return TypedResults.Ok();
     }
 
     private static async Task<Results<Ok<WorkoutPhotosDto>, NotFound>> GetPhotos(
         IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId)
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
-
-        try
-        {
-            return TypedResults.Ok(await workoutService.GetWorkoutProgressPhotosAsync(userId, workoutId));
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        return TypedResults.Ok(await workoutService.GetWorkoutProgressPhotosAsync(userId, workoutId));
     }
 
     private static async Task<Results<Ok, NotFound, BadRequest>> UploadPhoto(
@@ -147,47 +109,20 @@ public static class WorkoutEndpoints
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
 
-        try
-        {
-            await workoutService.UploadPhotoAsync(userId, workoutId,
-                formFile.OpenReadStream(), formFile.FileName, formFile.ContentType);
-            return TypedResults.Ok();
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        await workoutService.UploadPhotoAsync(userId, workoutId,
+            formFile.OpenReadStream(), formFile.FileName, formFile.ContentType);
+        return TypedResults.Ok();
     }
 
     public static async Task<Results<FileContentHttpResult, BadRequest, NotFound>> GetPhoto(
         IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId, [FromRoute] string photoId)
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
+        var (name, stream) = await workoutService.GetPhotoAsync(userId, workoutId, photoId);
 
-        try
-        {
-            var (name, stream) = await workoutService.GetPhotoAsync(userId, workoutId, photoId);
+        using var memoryStream = new MemoryStream();
+        stream.CopyTo(memoryStream);
 
-            using var memoryStream = new MemoryStream();
-            stream.CopyTo(memoryStream);
-
-            return TypedResults.File(memoryStream.ToArray(), contentType: "image/webp", fileDownloadName: name);
-        }
-        catch (UnknownImageFormatException)
-        {
-            return TypedResults.BadRequest();
-        }
-        catch (ImageTooLargeException)
-        {
-            return TypedResults.BadRequest();
-        }
-        catch (WorkoutNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
-        catch (ImageNotFoundException)
-        {
-            return TypedResults.NotFound();
-        }
+        return TypedResults.File(memoryStream.ToArray(), contentType: "image/webp", fileDownloadName: name);
     }
 }

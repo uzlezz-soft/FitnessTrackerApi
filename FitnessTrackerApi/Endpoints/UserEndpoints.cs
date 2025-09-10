@@ -32,19 +32,8 @@ public static class UserEndpoints
         if (!validationResult.IsValid)
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
 
-        try
-        {
-            var tokens = await authService.RegisterAsync(request);
-            return TypedResults.Created("/sessions", tokens);
-        }
-        catch (DuplicateUserException)
-        {
-            return TypedResults.Conflict();
-        }
-        catch (InvalidUserNameException)
-        {
-            return TypedResults.BadRequest();
-        }
+        var tokens = await authService.RegisterAsync(request);
+        return TypedResults.Created("/sessions", tokens);
     }
 
     private static async Task<Results<Ok<TokensDto>, BadRequest, UnauthorizedHttpResult, ValidationProblem>> Login(
@@ -54,42 +43,21 @@ public static class UserEndpoints
         if (!validationResult.IsValid)
             return TypedResults.ValidationProblem(validationResult.ToDictionary());
 
-        try
-        {
-            var tokens = await authService.LoginAsync(request);
-            return TypedResults.Ok(tokens);
-        }
-        catch (InvalidRefreshTokenException)
-        {
-            return TypedResults.Unauthorized();
-        }
+        var tokens = await authService.LoginAsync(request);
+        return TypedResults.Ok(tokens);
     }
 
     private static async Task<Results<Ok<TokensDto>, UnauthorizedHttpResult>> GetAccessToken(
         IAuthService authService, [FromRoute] string refreshToken)
     {
-        try
-        {
-            var token = await authService.GenerateAccessToken(refreshToken);
-            return TypedResults.Ok(token);
-        }
-        catch (InvalidRefreshTokenException)
-        {
-            return TypedResults.Unauthorized();
-        }
+        var token = await authService.GenerateAccessToken(refreshToken);
+        return TypedResults.Ok(token);
     }
 
     private static async Task<Results<Ok, UnauthorizedHttpResult>> LogOut(
         IAuthService authService, [FromRoute] string refreshToken)
     {
-        try
-        {
-            await authService.LogOutAsync(refreshToken);
-            return TypedResults.Ok();
-        }
-        catch (InvalidRefreshTokenException)
-        {
-            return TypedResults.Unauthorized();
-        }
+        await authService.LogOutAsync(refreshToken);
+        return TypedResults.Ok();
     }
 }
