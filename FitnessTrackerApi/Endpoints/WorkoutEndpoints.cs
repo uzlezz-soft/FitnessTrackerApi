@@ -1,9 +1,7 @@
 ﻿using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
-using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services.Workout;
 using FluentValidation;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -151,7 +149,8 @@ public static class WorkoutEndpoints
 
         try
         {
-            await workoutService.UploadPhotoAsync(userId, workoutId, formFile);
+            await workoutService.UploadPhotoAsync(userId, workoutId,
+                formFile.OpenReadStream(), formFile.FileName, formFile.ContentType);
             return TypedResults.Ok();
         }
         catch (WorkoutNotFoundException)
@@ -160,7 +159,7 @@ public static class WorkoutEndpoints
         }
     }
 
-    public static async Task<Results<FileContentHttpResult, NotFound>> GetPhoto(
+    public static async Task<Results<FileContentHttpResult, BadRequest, NotFound>> GetPhoto(
         IWorkoutService workoutService, HttpContext context, [FromRoute] string workoutId, [FromRoute] string photoId)
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
@@ -174,7 +173,19 @@ public static class WorkoutEndpoints
 
             return TypedResults.File(memoryStream.ToArray(), contentType: "image/webp", fileDownloadName: name);
         }
+        catch (UnknownImageFormatException)
+        {
+            return TypedResults.BadRequest();
+        }
+        catch (ImageTooLargeException)
+        {
+            return TypedResults.BadRequest();
+        }
         catch (WorkoutNotFoundException)
+        {
+            return TypedResults.NotFound();
+        }
+        catch (ImageNotFoundException)
         {
             return TypedResults.NotFound();
         }

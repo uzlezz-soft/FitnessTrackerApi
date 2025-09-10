@@ -14,21 +14,26 @@ public class PhotoService(
 {
     private readonly ImagesConfig _config = options.Value;
 
-    public async Task<string> UploadAsync(IFormFile formFile)
+    public async Task<string> UploadAsync(Stream stream, string fileName, string contentType)
     {
-        if (!formFile.ContentType.StartsWith("image/")) throw new Exceptions.UnknownImageFormatException();
-        if (formFile.Length > _config.SizeLimitKilobytes * 1024) throw new ImageTooLargeException();
-
-        // TODO: split to image converter
-        var encoder = new WebpEncoder { Quality = _config.WebpQuality };
+        if (!contentType.StartsWith("image/")) throw new Exceptions.UnknownImageFormatException();
+        if (stream.Length > _config.SizeLimitKilobytes * 1024) throw new ImageTooLargeException();
 
         using var memoryStream = new MemoryStream();
 
-        var image = Image.Load(formFile.OpenReadStream());
-        await image.SaveAsWebpAsync(memoryStream, encoder);
+        try
+        {
+            var encoder = new WebpEncoder { Quality = _config.WebpQuality };
+            var image = Image.Load(stream);
+            await image.SaveAsWebpAsync(memoryStream, encoder);
+        }
+        catch (SixLabors.ImageSharp.UnknownImageFormatException)
+        {
+            throw new Exceptions.UnknownImageFormatException();
+        }
 
         var id = await imageRepository.StoreAsync(memoryStream);
-        logger.LogInformation("Uploaded image {FileName}", formFile.FileName);
+        logger.LogInformation("Uploaded image {FileName}", fileName);
         return id;
     }
 

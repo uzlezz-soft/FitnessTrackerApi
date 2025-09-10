@@ -19,7 +19,6 @@ public class FileSystemImageRepository(
 
         Directory.CreateDirectory(path);
 
-        //var fullPath = Path.Combine(path, $"{name}.{contentType[(contentType.LastIndexOf('/') + 1)..]}");
         var fullPath = Path.Combine(path, name);
         using var file = File.OpenWrite(fullPath);
         stream.Position = 0;
@@ -36,7 +35,7 @@ public class FileSystemImageRepository(
         var fullPath = Path.Combine(path, name);
 
         if (!File.Exists(fullPath))
-            throw new FileNotFoundException($"File with id {id} not found.", fullPath);
+            throw new ImageNotFoundException();
 
         var info = new FileInfo(fullPath);
         var isoName = info.CreationTimeUtc.ToString("o");
@@ -48,14 +47,12 @@ public class FileSystemImageRepository(
 
     private (string path, string name) GetPath(string id)
     {
-        var name = id;
         var path = ImagesPath;
 
         for (int i = 0; i < options.Value.DirectoryNesting; i++)
         {
-            path = Path.Combine(path, name[..1]);
-            name = name[1..];
+            path = Path.Combine(path, id.Substring(i, 1));
         }
-        return (path, name);
+        return (path, id[options.Value.DirectoryNesting..]);
     }
 }

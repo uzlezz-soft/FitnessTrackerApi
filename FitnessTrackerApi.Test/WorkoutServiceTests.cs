@@ -14,6 +14,7 @@ public class WorkoutServiceTests
     private readonly AppDbContext _context;
     private readonly WorkoutService _service;
     private readonly Mock<ILogger<WorkoutService>> _loggerMock;
+    private readonly Mock<IPhotoService> _photoServiceMock;
 
     public WorkoutServiceTests()
     {
@@ -26,7 +27,9 @@ public class WorkoutServiceTests
         _context.Database.EnsureCreated();
 
         _loggerMock = new Mock<ILogger<WorkoutService>>();
-        _service = new WorkoutService(_context, _loggerMock.Object);
+        _photoServiceMock = new Mock<IPhotoService>();
+
+        _service = new WorkoutService(_context, _photoServiceMock.Object, _loggerMock.Object);
     }
 
     [Fact]
@@ -68,21 +71,7 @@ public class WorkoutServiceTests
     {
         // Arrange
         var user = new User { UserName = "test" };
-        var workout = new Workout
-        {
-            Id = Guid.NewGuid().ToString(),
-            CreatedAt = DateTime.UtcNow,
-            User = user,
-            Type = WorkoutType.CrossFit,
-            Exercises = [new()
-            {
-                Name = "Deadlift",
-                Sets = [new() { Reps = 10, Weight = 100 }, new() { Reps = 8, Weight = 100 }]
-            }],
-            Duration = TimeSpan.FromMinutes(10),
-            CaloriesBurned = 100,
-            WorkoutDate = DateTime.UtcNow
-        };
+        var workout = GetDummyWorkout(user);
         _context.Users.Add(user);
         _context.Workouts.Add(workout);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -93,7 +82,7 @@ public class WorkoutServiceTests
         // Assert
         Assert.Single(result);
         Assert.Equal(workout.Id, result.First().Id);
-        Assert.Equal(WorkoutType.CrossFit, result.First().Type);
+        Assert.Equal(WorkoutType.Cardio, result.First().Type);
     }
 
     [Fact]
@@ -101,20 +90,7 @@ public class WorkoutServiceTests
     {
         // Arrange
         var user = new User { UserName = "test" };
-        var workout = new Workout
-        {
-            Id = Guid.NewGuid().ToString(),
-            CreatedAt = DateTime.UtcNow,
-            User = user,
-            Exercises = [new()
-            {
-                Name = "Swimming",
-                Sets = [new(){ Reps = 60, Weight = 50 }]
-            }],
-            Type = WorkoutType.Cardio,
-            Duration = TimeSpan.FromMinutes(30),
-            WorkoutDate = DateTime.UtcNow
-        };
+        var workout = GetDummyWorkout(user);
         _context.Users.Add(user);
         _context.Workouts.Add(workout);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -144,21 +120,8 @@ public class WorkoutServiceTests
     {
         // Arrange
         var user = new User { UserName = "test" };
-        var workout = new Workout
-        {
-            Id = Guid.NewGuid().ToString(),
-            CreatedAt = DateTime.UtcNow,
-            User = user,
-            Exercises = [new()
-            {
-                Name = "Swimming",
-                Sets = [new(){ Reps = 60, Weight = 50 }]
-            }],
-            Type = WorkoutType.Strength,
-            Duration = TimeSpan.FromMinutes(30),
-            CaloriesBurned = 600,
-            WorkoutDate = DateTime.UtcNow
-        };
+        var workout = GetDummyWorkout(user);
+        workout.Type = WorkoutType.Strength;
         _context.Users.Add(user);
         _context.Workouts.Add(workout);
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
@@ -210,10 +173,90 @@ public class WorkoutServiceTests
     }
 
     [Fact]
-    public async Task DeleteWorkoutAsync_ShouldThrow_WhenNotFound()
+    public async Task DeleteWorkout_ShouldThrow_WhenNotFound()
     {
         // Act + Assert
         await Assert.ThrowsAsync<WorkoutNotFoundException>(() =>
             _service.DeleteWorkoutAsync("test", "missing"));
     }
+
+    [Fact]
+    public async Task UploadPhoto_ShouldCallUploadAndSave()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        var workout = GetDummyWorkout(user);
+        await _context.Workouts.AddAsync(workout, TestContext.Current.CancellationToken);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        using var ms = new MemoryStream();
+
+        _photoServiceMock.Setup(x => x.UploadAsync(It.IsAny<Stream>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync("photo-id");
+
+        // Act
+        await _service.UploadPhotoAsync(user.Id, workout.Id, ms, "test", "image/png");
+
+        // Assert
+        _photoServiceMock.Verify(x => x.UploadAsync(ms, "test", "image/png"), Times.Once);
+        Assert.NotEmpty(_context.Workouts.First().ProgressPhotos);
+        Assert.Equal("photo-id", _context.Workouts.First().ProgressPhotos.First());
+    }
+
+    [Fact]
+    public async Task UploadPhoto_ShouldThrow_WhenWorkoutNotFound()
+    {
+        // Arrange
+        var ms = new MemoryStream();
+
+        // Act + Assert
+        await Assert.ThrowsAsync<WorkoutNotFoundException>(() =>
+            _service.UploadPhotoAsync("test", "missing", ms, "test.png", "image/png"));
+    }
+
+    [Fact]
+    public async Task GetPhoto_ShouldCallGetAndReturnNameAndStream()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        var workout = GetDummyWorkout(user);
+        await _context.Workouts.AddAsync(workout, TestContext.Current.CancellationToken);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+        using var ms = new MemoryStream();
+
+        _photoServiceMock.Setup(x => x.GetAsync(It.IsAny<string>()))
+            .ReturnsAsync(("image.webp", ms));
+
+        // Act
+        var (name, stream) = await _service.GetPhotoAsync(user.Id, workout.Id, "photo-id");
+
+        // Assert
+        Assert.False(string.IsNullOrWhiteSpace(name));
+        Assert.Equal(ms, stream);
+        _photoServiceMock.Verify(x => x.GetAsync("photo-id"), Times.Once());
+    }
+
+    [Fact]
+    public async Task GetPhoto_ShouldThrow_WhenWorkoutNotFound()
+    {
+        // Act + Assert
+        await Assert.ThrowsAsync<WorkoutNotFoundException>(() =>
+            _service.GetPhotoAsync("test", "missing", "photo-id"));
+    }
+
+    private static Workout GetDummyWorkout(User user)
+        => new()
+        {
+            Id = Guid.NewGuid().ToString(),
+            CreatedAt = DateTime.UtcNow,
+            User = user,
+            Exercises = [new()
+            {
+                Name = "Swimming",
+                Sets = [new(){ Reps = 60, Weight = 50 }]
+            }],
+            Type = WorkoutType.Cardio,
+            Duration = TimeSpan.FromMinutes(30),
+            CaloriesBurned = 600,
+            WorkoutDate = DateTime.UtcNow
+        };
 }

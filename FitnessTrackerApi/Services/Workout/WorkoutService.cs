@@ -65,13 +65,13 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
             .FirstOrDefaultAsync(x => x.Id == workoutId && x.UserId == userId))?.Photos
             ?? throw new WorkoutNotFoundException();
 
-    public async Task UploadPhotoAsync(string userId, string workoutId, IFormFile file)
+    public async Task UploadPhotoAsync(string userId, string workoutId, Stream stream, string fileName, string contentType)
     {
         var workout = await context.Workouts
             .FirstOrDefaultAsync(x => x.Id == workoutId && x.User.Id == userId)
             ?? throw new WorkoutNotFoundException();
 
-        var id = await photoService.UploadAsync(file);
+        var id = await photoService.UploadAsync(stream, fileName, contentType);
         workout.ProgressPhotos.Add(id);
         await context.SaveChangesAsync();
     }
