@@ -56,3 +56,6 @@ public record CreatedWorkoutDto(string Id);
 public record WorkoutDto(string Id, DateTime CreatedAt, WorkoutType Type, IEnumerable<ExerciseDto> Exercises, TimeSpan Duration, int CaloriesBurned, DateTime WorkoutDate);
 
 public record WorkoutPhotosDto(IEnumerable<string> Photos);
+
+public enum WorkoutSortCriterion { Date, CaloriesBurned }
+public record WorkoutSearchConfig(WorkoutType[]? Types, DateTime? Before, DateTime? After, TimeSpan? MinDuration, TimeSpan? MaxDuration, int? Count, int? Offset, WorkoutSortCriterion? SortBy, bool? SortAscending = true);

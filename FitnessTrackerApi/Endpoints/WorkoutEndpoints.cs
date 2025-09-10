@@ -1,5 +1,6 @@
 ﻿using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
+using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services.Workout;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
@@ -62,10 +63,11 @@ public static class WorkoutEndpoints
     }
 
     private static async Task<Ok<IEnumerable<WorkoutDto>>> GetAll(
-        IWorkoutService workoutService, HttpContext context)
+        IWorkoutService workoutService, HttpContext context,
+        [AsParameters] WorkoutSearchConfig searchConfig)
     {
         var userId = context.User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.NameIdentifier)!.Value;
-        return TypedResults.Ok(await workoutService.GetWorkoutsAsync(userId));
+        return TypedResults.Ok(await workoutService.GetWorkoutsAsync(userId, searchConfig));
     }
 
     private static async Task<Results<Ok<WorkoutDto>, NotFound>> Get(

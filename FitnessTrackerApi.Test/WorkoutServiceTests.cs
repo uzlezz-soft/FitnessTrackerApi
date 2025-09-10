@@ -77,7 +77,7 @@ public class WorkoutServiceTests
         await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
 
         // Act
-        var result = await _service.GetWorkoutsAsync(user.Id);
+        var result = await _service.GetWorkoutsAsync(user.Id, new(null, null, null, null, null, null, null, null));
 
         // Assert
         Assert.Single(result);
