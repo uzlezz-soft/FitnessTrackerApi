@@ -4,18 +4,55 @@ using FitnessTrackerApi.Endpoints;
 using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services;
 using FitnessTrackerApi.Services.Auth;
+using FitnessTrackerApi.Services.Workout;
 using FluentValidation;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
 using System.Text;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// https://stackoverflow.com/a/76644093
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+builder.Services.Configure<Microsoft.AspNetCore.Mvc.JsonOptions>(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme()
+    {
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer"
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 builder.Services.AddDbContextPool<AppDbContext>(options =>
 {
@@ -48,13 +85,24 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.Configure<AuthConfig>(
     builder.Configuration.GetSection(AuthConfig.SectionName));
+builder.Services.Configure<ImagesConfig>(
+    builder.Configuration.GetSection(ImagesConfig.SectionName));
+builder.Services.Configure<FileSystemImageRepositoryConfig>(
+    builder.Configuration.GetSection(FileSystemImageRepositoryConfig.SectionName));
 
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 
+builder.Services.AddSingleton<IImageRepository, FileSystemImageRepository>();
+builder.Services.AddScoped<IPhotoService, PhotoService>();
+
+builder.Services.AddScoped<IWorkoutService, WorkoutService>();
+
 builder.Services.AddHostedService<RefreshTokenCleanupHostedService>();
 
 builder.Services.AddValidatorsFromAssemblyContaining<UserLoginValidator>();
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -66,6 +114,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthorization();
+
 app.RegisterUserEndpoints();
+app.RegisterWorkoutEndpoints();
 
 app.Run();

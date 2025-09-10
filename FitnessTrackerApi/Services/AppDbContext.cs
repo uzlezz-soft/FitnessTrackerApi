@@ -6,7 +6,7 @@ namespace FitnessTrackerApi.Services;
 
 public class AppDbContext : IdentityDbContext<User>
 {
-    public DbSet<Workout> Workouts { get; set; }
+    public DbSet<Models.Workout> Workouts { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
 
     public AppDbContext(DbContextOptions<AppDbContext> options)
@@ -17,7 +17,7 @@ public class AppDbContext : IdentityDbContext<User>
     {
         base.OnModelCreating(builder);
 
-        builder.Entity<Workout>(workout =>
+        builder.Entity<Models.Workout>(workout =>
         {
             workout.HasKey(x => x.Id);
             workout.Property(x => x.Type).HasConversion<string>();
