@@ -26,20 +26,20 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
         IQueryable<Models.Workout> query = context.Workouts
             .Where(x => x.User.Id == userId);
 
-        if (searchConfig.Types != null && searchConfig.Types.Any())
+        if (searchConfig.Types != null && searchConfig.Types.Length != 0)
             query = query.Where(x => searchConfig.Types.Contains(x.Type));
 
-        if (searchConfig.Before != null) query = query.Where(x => x.WorkoutDate <= searchConfig.Before);
-        if (searchConfig.After != null) query = query.Where(x => x.WorkoutDate >= searchConfig.After);
+        if (searchConfig.Before is DateTime before) query = query.Where(x => x.WorkoutDate <= before);
+        if (searchConfig.After is DateTime after) query = query.Where(x => x.WorkoutDate >= after);
 
-        if (searchConfig.MinDuration != null) query = query.Where(x => x.Duration >= searchConfig.MinDuration);
-        if (searchConfig.MaxDuration != null) query = query.Where(x => x.Duration <= searchConfig.MaxDuration);
+        if (searchConfig.MinDuration is TimeSpan minDuration) query = query.Where(x => x.Duration >= minDuration);
+        if (searchConfig.MaxDuration is TimeSpan maxDuration) query = query.Where(x => x.Duration <= maxDuration);
 
         query = searchConfig.SortBy switch
         {
-            WorkoutSortCriterion.Date => searchConfig.SortAscending == true
+            WorkoutSortCriterion.Date => searchConfig.SortAscending ?? true
                 ? query.OrderBy(x => x.WorkoutDate) : query.OrderByDescending(x => x.WorkoutDate),
-            WorkoutSortCriterion.CaloriesBurned => searchConfig.SortAscending == true
+            WorkoutSortCriterion.CaloriesBurned => searchConfig.SortAscending ?? true
                 ? query.OrderBy(x => x.CaloriesBurned) : query.OrderByDescending(x => x.CaloriesBurned),
             _ => query
         };

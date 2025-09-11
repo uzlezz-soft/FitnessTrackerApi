@@ -9,22 +9,19 @@ using Moq;
 
 namespace FitnessTrackerApi.Test;
 
-public class WorkoutServiceTests
+[Collection("Tests")]
+public class WorkoutServiceTests : IClassFixture<TestDatabaseFixture>, IDisposable
 {
     private readonly AppDbContext _context;
+    private readonly TestDatabaseFixture _databaseFixture;
     private readonly WorkoutService _service;
     private readonly Mock<ILogger<WorkoutService>> _loggerMock;
     private readonly Mock<IPhotoService> _photoServiceMock;
 
-    public WorkoutServiceTests()
+    public WorkoutServiceTests(TestDatabaseFixture databaseFixture)
     {
-        var contextOptions = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("DataSource=:memory:")
-            .Options;
-
-        _context = new AppDbContext(contextOptions);
-        _context.Database.OpenConnection();
-        _context.Database.EnsureCreated();
+        _databaseFixture = databaseFixture;
+        _context = _databaseFixture.CreateContext();
 
         _loggerMock = new Mock<ILogger<WorkoutService>>();
         _photoServiceMock = new Mock<IPhotoService>();
@@ -82,6 +79,31 @@ public class WorkoutServiceTests
         // Assert
         Assert.Single(result);
         Assert.Equal(workout.Id, result.First().Id);
+        Assert.Equal(WorkoutType.Cardio, result.First().Type);
+    }
+
+    [Fact]
+    public async Task GetWorkouts_WithSearchConfig_ShouldReturnSingleWorkout()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        _context.Users.Add(user);
+        var workout1 = GetDummyWorkout(user);
+        _context.Workouts.Add(workout1);
+        var workout2 = GetDummyWorkout(user);
+        workout2.Duration = TimeSpan.FromHours(2);
+        _context.Workouts.Add(workout2);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var searchConfig = new WorkoutSearchConfig([WorkoutType.Cardio, WorkoutType.HIIT],
+            null, null, TimeSpan.FromMinutes(5), TimeSpan.FromMinutes(60), null, null, null);
+
+        // Act
+        var result = await _service.GetWorkoutsAsync(user.Id, searchConfig);
+
+        // Assert
+        Assert.Single(result);
+        Assert.Equal(workout1.Id, result.First().Id);
         Assert.Equal(WorkoutType.Cardio, result.First().Type);
     }
 
@@ -259,4 +281,7 @@ public class WorkoutServiceTests
             CaloriesBurned = 600,
             WorkoutDate = DateTime.UtcNow
         };
+
+    public void Dispose()
+        => _databaseFixture.Cleanup();
 }
