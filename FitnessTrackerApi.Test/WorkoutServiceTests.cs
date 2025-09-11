@@ -181,6 +181,32 @@ public class WorkoutServiceTests
     }
 
     [Fact]
+    public async Task GetWorkoutProgressPhotos_ShouldReturnPhotos()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        var workout = GetDummyWorkout(user);
+        workout.ProgressPhotos = ["photo-1", "photo-2"];
+        await _context.Workouts.AddAsync(workout, TestContext.Current.CancellationToken);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        // Act
+        var photos = await _service.GetWorkoutProgressPhotosAsync(user.Id, workout.Id);
+
+        // Assert
+        Assert.NotEmpty(photos.Photos);
+        Assert.Equal(["photo-1", "photo-2"], photos.Photos);
+    }
+
+    [Fact]
+    public async Task GetWorkoutProgressPhotos_ShouldThrow_WhenNotFound()
+    {
+        // Act + Assert
+        await Assert.ThrowsAsync<WorkoutNotFoundException>(() =>
+            _service.GetWorkoutProgressPhotosAsync("test", "missing"));
+    }
+
+    [Fact]
     public async Task UploadPhoto_ShouldCallUploadAndSave()
     {
         // Arrange
