@@ -4,6 +4,8 @@ using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services;
 using FitnessTrackerApi.Services.Auth;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -35,7 +37,21 @@ public class TokenProviderTests : IClassFixture<TestDatabaseFixture>, IDisposabl
 
         var options = Options.Create(authConfig);
         var logger = Mock.Of<ILogger<TokenProvider>>();
-        _tokenProvider = new TokenProvider(options, _context, logger);
+
+        var services = new ServiceCollection();
+        services.AddMemoryCache();
+        var serviceProvider = services.BuildServiceProvider();
+        var memoryCache = serviceProvider.GetService<IMemoryCache>();
+
+        var cacheConfig = new CacheConfig
+        {
+            WorkoutCacheSeconds = 30,
+            WorkoutSearchCacheSeconds = 30,
+            RefreshTokenCacheMinutes = 15
+        };
+        var cacheOptions = Options.Create(cacheConfig);
+
+        _tokenProvider = new TokenProvider(options, _context, logger, memoryCache, cacheOptions);
     }
 
     [Fact]

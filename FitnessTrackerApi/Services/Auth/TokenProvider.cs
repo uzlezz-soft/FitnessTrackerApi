@@ -3,6 +3,7 @@ using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -12,9 +13,15 @@ using System.Text;
 
 namespace FitnessTrackerApi.Services.Auth;
 
-public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext context, ILogger<TokenProvider> logger) : ITokenProvider
+public class TokenProvider(
+    IOptions<AuthConfig> authOptions,
+    AppDbContext context,
+    ILogger<TokenProvider> logger,
+    IMemoryCache cache,
+    IOptions<CacheConfig> cacheOptions) : ITokenProvider
 {
     private readonly AuthConfig _config = authOptions.Value;
+    private readonly CacheConfig _cacheConfig = cacheOptions.Value;
     private readonly SymmetricSecurityKey _key = new(Encoding.UTF8.GetBytes(authOptions.Value.Key));
 
     public async Task<TokensDto> GenerateAccessTokenAsync(RefreshToken token, bool revokeRefreshToken = true)
@@ -41,6 +48,7 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
             logger.LogInformation("Generated access token for user {UserId}, rotating refresh token", token.User.Id);
             token.Status = RefreshTokenStatus.Revoked;
             context.Update(token);
+            SaveTokenInCache(token);
             var (_, refreshTokenString) = await GenerateRefreshTokenAsync(token.User);
             return new(refreshTokenString, accessToken);
         }
@@ -68,7 +76,8 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         };
         await context.RefreshTokens.AddAsync(token);
         await context.SaveChangesAsync();
-
+        SaveTokenInCache(token);
+        
         return (token, tokenString);
     }
 
@@ -83,6 +92,10 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
         {
             throw new InvalidRefreshTokenException();
         }
+
+        if (cache.TryGetValue($"refresh:{tokenHash}", out var tokenObj) && tokenObj is RefreshToken cachedToken
+            && (cachedToken.Status != RefreshTokenStatus.Valid || cachedToken.ValidUntil <= DateTime.UtcNow))
+            throw new InvalidRefreshTokenException();
 
         var token = await context.RefreshTokens
             .Include(x => x.User)
@@ -113,6 +126,8 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
                 && x.Status == RefreshTokenStatus.Valid
                 && x.ValidUntil > DateTime.UtcNow) ?? throw new InvalidRefreshTokenException();
         token.Status = RefreshTokenStatus.Revoked;
+        SaveTokenInCache(token);
+
         await context.SaveChangesAsync();
     }
 
@@ -126,4 +141,6 @@ public class TokenProvider(IOptions<AuthConfig> authOptions, AppDbContext contex
     }
 
     private static string HashToken(byte[] token) => Convert.ToBase64String(SHA256.HashData(token));
+    private void SaveTokenInCache(RefreshToken token)
+        => cache.Set($"refresh:{token.Token}", token, TimeSpan.FromMinutes(_cacheConfig.RefreshTokenCacheMinutes));
 }

@@ -1,11 +1,17 @@
-﻿using FitnessTrackerApi.DTOs;
+﻿using FitnessTrackerApi.Configs;
+using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace FitnessTrackerApi.Services.Auth;
 
-public class AuthService(ILogger<AuthService> logger, UserManager<User> userManager, ITokenProvider tokenProvider) : IAuthService
+public class AuthService(
+    ILogger<AuthService> logger,
+    UserManager<User> userManager,
+    ITokenProvider tokenProvider) : IAuthService
 {
     public async Task<TokensDto> RegisterAsync(UserRegisterDto request)
     {
@@ -24,6 +30,7 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
         }
 
         logger.LogInformation("User registered: {UserId} {UserName}", user.Id, user.UserName);
+        
         return await GenerateTokens(user);
     }
 
@@ -43,6 +50,7 @@ public class AuthService(ILogger<AuthService> logger, UserManager<User> userMana
         var (refreshToken, refreshTokenString) = await tokenProvider.GenerateRefreshTokenAsync(user);
 
         var (_, accessToken) = await tokenProvider.GenerateAccessTokenAsync(refreshToken, false);
+
         return new TokensDto(refreshTokenString, accessToken);
     }
 
