@@ -108,6 +108,54 @@ public class WorkoutServiceTests : IClassFixture<TestDatabaseFixture>, IDisposab
     }
 
     [Fact]
+    public async Task GetWorkouts_WithSearchConfig_ShouldReturnNone()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        _context.Users.Add(user);
+        var workout1 = GetDummyWorkout(user);
+        _context.Workouts.Add(workout1);
+        var workout2 = GetDummyWorkout(user);
+        workout2.Duration = TimeSpan.FromHours(2);
+        _context.Workouts.Add(workout2);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var searchConfig = new WorkoutSearchConfig(null,
+            DateTime.UtcNow.AddDays(-2), null, null, null, null, null, null);
+
+        // Act
+        var result = await _service.GetWorkoutsAsync(user.Id, searchConfig);
+
+        // Assert
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public async Task GetWorkouts_WithSearchConfig_ShouldReturnSortedDescending()
+    {
+        // Arrange
+        var user = new User { UserName = "test" };
+        _context.Users.Add(user);
+        var workout1 = GetDummyWorkout(user);
+        _context.Workouts.Add(workout1);
+        var workout2 = GetDummyWorkout(user);
+        workout2.CaloriesBurned = workout1.CaloriesBurned * 2;
+        _context.Workouts.Add(workout2);
+        await _context.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var searchConfig = new WorkoutSearchConfig(null,
+            null, null, null, null, null, null, WorkoutSortCriterion.CaloriesBurned, false);
+
+        // Act
+        var result = await _service.GetWorkoutsAsync(user.Id, searchConfig);
+
+        // Assert
+        Assert.Equal(2, result.Count());
+        Assert.Equal(workout2.Id, result.First().Id);
+        Assert.Equal(workout1.Id, result.Last().Id);
+    }
+
+    [Fact]
     public async Task GetWorkout_ShouldReturnWorkout()
     {
         // Arrange
