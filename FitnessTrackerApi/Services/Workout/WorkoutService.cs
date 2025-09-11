@@ -1,6 +1,7 @@
 using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Mappers;
+using FitnessTrackerApi.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace FitnessTrackerApi.Services.Workout;
@@ -20,11 +21,34 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
         return workout.ToCreatedWorkout();
     }
 
-    public async Task<IEnumerable<WorkoutDto>> GetWorkoutsAsync(string userId)
-        => await context.Workouts
-        .Where(x => x.User.Id == userId)
-        .Select(x => x.ToDto())
-        .ToArrayAsync();
+    public async Task<IEnumerable<WorkoutDto>> GetWorkoutsAsync(string userId, WorkoutSearchConfig searchConfig)
+    {
+        IQueryable<Models.Workout> query = context.Workouts
+            .Where(x => x.User.Id == userId);
+
+        if (searchConfig.Types != null && searchConfig.Types.Length != 0)
+            query = query.Where(x => searchConfig.Types.Contains(x.Type));
+
+        if (searchConfig.Before is DateTime before) query = query.Where(x => x.WorkoutDate <= before);
+        if (searchConfig.After is DateTime after) query = query.Where(x => x.WorkoutDate >= after);
+
+        if (searchConfig.MinDuration is TimeSpan minDuration) query = query.Where(x => x.Duration >= minDuration);
+        if (searchConfig.MaxDuration is TimeSpan maxDuration) query = query.Where(x => x.Duration <= maxDuration);
+
+        query = searchConfig.SortBy switch
+        {
+            WorkoutSortCriterion.Date => searchConfig.SortAscending ?? true
+                ? query.OrderBy(x => x.WorkoutDate) : query.OrderByDescending(x => x.WorkoutDate),
+            WorkoutSortCriterion.CaloriesBurned => searchConfig.SortAscending ?? true
+                ? query.OrderBy(x => x.CaloriesBurned) : query.OrderByDescending(x => x.CaloriesBurned),
+            _ => query
+        };
+
+        if (searchConfig.Offset is int offset) query = query.Skip(offset);
+        if (searchConfig.Count is int count) query = query.Take(count);
+
+        return await query.Select(x => x.ToDto()).ToArrayAsync();
+    }
 
     public async Task<WorkoutDto> GetWorkoutAsync(string userId, string workoutId)
         => await context.Workouts

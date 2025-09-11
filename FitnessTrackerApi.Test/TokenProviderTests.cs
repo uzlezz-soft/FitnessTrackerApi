@@ -10,20 +10,17 @@ using Moq;
 
 namespace FitnessTrackerApi.Test;
 
-public class TokenProviderTests
+[Collection("Tests")]
+public class TokenProviderTests : IClassFixture<TestDatabaseFixture>, IDisposable
 {
     private readonly TokenProvider _tokenProvider;
     private readonly AppDbContext _context;
+    private readonly TestDatabaseFixture _databaseFixture;
 
-    public TokenProviderTests()
+    public TokenProviderTests(TestDatabaseFixture databaseFixture)
     {
-        var contextOptions = new DbContextOptionsBuilder<AppDbContext>()
-            .UseSqlite("DataSource=:memory:")
-            .Options;
-
-        _context = new AppDbContext(contextOptions);
-        _context.Database.OpenConnection();
-        _context.Database.EnsureCreated();
+        _databaseFixture = databaseFixture;
+        _context = _databaseFixture.CreateContext();
 
         var authConfig = new AuthConfig
         {
@@ -148,4 +145,7 @@ public class TokenProviderTests
         Assert.NotNull(_context.RefreshTokens.FirstOrDefault(x => x.Token == "bcbcbcbc"));
         Assert.NotNull(_context.RefreshTokens.FirstOrDefault(x => x.Token == "cdcdcdcd"));
     }
+
+    public void Dispose()
+       => _databaseFixture.Cleanup();
 }
