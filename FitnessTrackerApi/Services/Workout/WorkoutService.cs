@@ -1,13 +1,22 @@
+using FitnessTrackerApi.Configs;
 using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Mappers;
-using FitnessTrackerApi.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Options;
 
 namespace FitnessTrackerApi.Services.Workout;
 
-public class WorkoutService(AppDbContext context, IPhotoService photoService, ILogger<WorkoutService> logger) : IWorkoutService
+public class WorkoutService(
+    AppDbContext context,
+    IPhotoService photoService,
+    ILogger<WorkoutService> logger,
+    IMemoryCache cache,
+    IOptions<CacheConfig> cacheOptions) : IWorkoutService
 {
+    private readonly CacheConfig _cacheConfig = cacheOptions.Value;
+
     public async Task<CreatedWorkoutDto> RecordWorkoutAsync(string userId, WorkoutCreateDto model)
     {
         var user = await context.Users.FirstOrDefaultAsync(x => x.Id == userId) ?? throw new UserNotFoundException();
@@ -16,45 +25,58 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
         workout.User = user!;
         await context.Workouts.AddAsync(workout);
         await context.SaveChangesAsync();
+        cache.Remove($"{userId}:workouts");
 
         logger.LogInformation("Recorded workout for user {UserId}", userId);
         return workout.ToCreatedWorkout();
     }
 
     public async Task<IEnumerable<WorkoutDto>> GetWorkoutsAsync(string userId, WorkoutSearchConfig searchConfig)
-    {
-        IQueryable<Models.Workout> query = context.Workouts
+        => (await cache.GetOrCreateAsync((userId, searchConfig), async entry =>
+        {
+            IQueryable<Models.Workout> query = context.Workouts
             .Where(x => x.User.Id == userId);
 
-        if (searchConfig.Types != null && searchConfig.Types.Length != 0)
-            query = query.Where(x => searchConfig.Types.Contains(x.Type));
+            if (searchConfig.Types != null && searchConfig.Types.Length != 0)
+                query = query.Where(x => searchConfig.Types.Contains(x.Type));
 
-        if (searchConfig.Before is DateTime before) query = query.Where(x => x.WorkoutDate <= before);
-        if (searchConfig.After is DateTime after) query = query.Where(x => x.WorkoutDate >= after);
+            if (searchConfig.Before is DateTime before) query = query.Where(x => x.WorkoutDate <= before);
+            if (searchConfig.After is DateTime after) query = query.Where(x => x.WorkoutDate >= after);
 
-        if (searchConfig.MinDuration is TimeSpan minDuration) query = query.Where(x => x.Duration >= minDuration);
-        if (searchConfig.MaxDuration is TimeSpan maxDuration) query = query.Where(x => x.Duration <= maxDuration);
+            if (searchConfig.MinDuration is TimeSpan minDuration) query = query.Where(x => x.Duration >= minDuration);
+            if (searchConfig.MaxDuration is TimeSpan maxDuration) query = query.Where(x => x.Duration <= maxDuration);
 
-        query = searchConfig.SortBy switch
-        {
-            WorkoutSortCriterion.Date => searchConfig.SortAscending ?? true
-                ? query.OrderBy(x => x.WorkoutDate) : query.OrderByDescending(x => x.WorkoutDate),
-            WorkoutSortCriterion.CaloriesBurned => searchConfig.SortAscending ?? true
-                ? query.OrderBy(x => x.CaloriesBurned) : query.OrderByDescending(x => x.CaloriesBurned),
-            _ => query
-        };
+            query = searchConfig.SortBy switch
+            {
+                WorkoutSortCriterion.Date => searchConfig.SortAscending ?? true
+                    ? query.OrderBy(x => x.WorkoutDate) : query.OrderByDescending(x => x.WorkoutDate),
+                WorkoutSortCriterion.CaloriesBurned => searchConfig.SortAscending ?? true
+                    ? query.OrderBy(x => x.CaloriesBurned) : query.OrderByDescending(x => x.CaloriesBurned),
+                _ => query
+            };
 
-        if (searchConfig.Offset is int offset) query = query.Skip(offset);
-        if (searchConfig.Count is int count) query = query.Take(count);
+            if (searchConfig.Offset is int offset) query = query.Skip(offset);
+            if (searchConfig.Count is int count) query = query.Take(count);
 
-        return await query.Select(x => x.ToDto()).ToArrayAsync();
-    }
+            var workouts = await query.Select(x => x.ToDto()).ToArrayAsync();
+
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_cacheConfig.WorkoutSearchCacheSeconds);
+            return workouts;
+        }))!;
 
     public async Task<WorkoutDto> GetWorkoutAsync(string userId, string workoutId)
-        => await context.Workouts
-        .Where(x => x.Id == workoutId && x.User.Id == userId)
-        .Select(x => x.ToDto())
-        .FirstOrDefaultAsync() ?? throw new WorkoutNotFoundException();
+    {
+        var workouts = await cache.GetOrCreateAsync($"{userId}:workouts", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_cacheConfig.WorkoutCacheSeconds);
+            return await context.Workouts
+                .Where(x => x.User.Id == userId)
+                .Select(x => x.ToDto())
+                .ToArrayAsync();
+        });
+        return workouts!
+            .FirstOrDefault(x => x.Id == workoutId) ?? throw new WorkoutNotFoundException();
+    }
 
     public async Task UpdateWorkoutAsync(string userId, string workoutId, WorkoutUpdateDto dto)
     {
@@ -64,6 +86,7 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
 
         workout.PopulateFrom(dto);
         await context.SaveChangesAsync();
+        cache.Remove($"{userId}:workouts");
         logger.LogInformation("Updated workout {WorkoutId} for user {UserId}", workoutId, userId);
     }
 
@@ -79,15 +102,21 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
 
         context.Workouts.Remove(workout);
         await context.SaveChangesAsync();
+        cache.Remove($"{userId}:workouts");
+        cache.Remove($"{userId}:{workoutId}:photos");
 
         logger.LogInformation("Deleted workout {WorkoutId} for user {UserId}", workoutId, userId);
     }
 
     public async Task<WorkoutPhotosDto> GetWorkoutProgressPhotosAsync(string userId, string workoutId)
-        => (await context.Workouts
-            .Select(x => new { x.Id, UserId = x.User.Id, Photos = x.ToPhotos() })
-            .FirstOrDefaultAsync(x => x.Id == workoutId && x.UserId == userId))?.Photos
-            ?? throw new WorkoutNotFoundException();
+        => (await cache.GetOrCreateAsync($"{userId}:{workoutId}:photos", async entry =>
+        {
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(_cacheConfig.WorkoutCacheSeconds);
+            return (await context.Workouts
+                .Select(x => new { x.Id, UserId = x.User.Id, Photos = x.ToPhotos() })
+                .FirstOrDefaultAsync(x => x.Id == workoutId && x.UserId == userId))?.Photos
+                ?? throw new WorkoutNotFoundException();
+        }))!;
 
     public async Task UploadPhotoAsync(string userId, string workoutId, Stream stream, string fileName, string contentType)
     {
@@ -98,6 +127,7 @@ public class WorkoutService(AppDbContext context, IPhotoService photoService, IL
         var id = await photoService.UploadAsync(stream, fileName, contentType);
         workout.ProgressPhotos.Add(id);
         await context.SaveChangesAsync();
+        cache.Remove($"{userId}:{workoutId}:photos");
     }
 
     public async Task<(string name, Stream stream)> GetPhotoAsync(string userId, string workoutId, string photoId)

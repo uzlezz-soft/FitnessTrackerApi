@@ -1,10 +1,14 @@
+using FitnessTrackerApi.Configs;
 using FitnessTrackerApi.DTOs;
 using FitnessTrackerApi.Exceptions;
 using FitnessTrackerApi.Models;
 using FitnessTrackerApi.Services;
 using FitnessTrackerApi.Services.Workout;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Moq;
 
 namespace FitnessTrackerApi.Test;
@@ -26,7 +30,20 @@ public class WorkoutServiceTests : IClassFixture<TestDatabaseFixture>, IDisposab
         _loggerMock = new Mock<ILogger<WorkoutService>>();
         _photoServiceMock = new Mock<IPhotoService>();
 
-        _service = new WorkoutService(_context, _photoServiceMock.Object, _loggerMock.Object);
+        var services = new ServiceCollection();
+        services.AddMemoryCache();
+        var serviceProvider = services.BuildServiceProvider();
+        var memoryCache = serviceProvider.GetService<IMemoryCache>();
+
+        var cacheConfig = new CacheConfig
+        {
+            WorkoutCacheSeconds = 30,
+            WorkoutSearchCacheSeconds = 30,
+            RefreshTokenCacheMinutes = 15
+        };
+        var options = Options.Create(cacheConfig);
+
+        _service = new WorkoutService(_context, _photoServiceMock.Object, _loggerMock.Object, memoryCache!, options);
     }
 
     [Fact]
