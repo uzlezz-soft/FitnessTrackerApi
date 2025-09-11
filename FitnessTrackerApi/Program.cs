@@ -92,6 +92,8 @@ builder.Services.Configure<ImagesConfig>(
     builder.Configuration.GetSection(ImagesConfig.SectionName));
 builder.Services.Configure<FileSystemImageRepositoryConfig>(
     builder.Configuration.GetSection(FileSystemImageRepositoryConfig.SectionName));
+builder.Services.Configure<CacheConfig>(
+    builder.Configuration.GetSection(CacheConfig.SectionName));
 
 builder.Services.AddScoped<ITokenProvider, TokenProvider>();
 builder.Services.AddScoped<IAuthService, AuthService>();
