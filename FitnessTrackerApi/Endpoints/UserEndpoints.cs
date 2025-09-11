@@ -13,13 +13,16 @@ public static class UserEndpoints
     {
         builder.MapPost("/users", Register)
             .WithName("Register")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireRateLimiting("create-or-refresh");
         builder.MapPost("/sessions", Login)
             .WithName("Login")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireRateLimiting("create-or-refresh");
         builder.MapPut("/sessions/{refreshToken}", GetAccessToken)
             .WithName("RefreshToken")
-            .WithOpenApi();
+            .WithOpenApi()
+            .RequireRateLimiting("create-or-refresh");
         builder.MapDelete("/sessions/{refreshToken}", LogOut)
             .WithName("LogOut")
             .WithOpenApi();

@@ -16,7 +16,8 @@ public static class WorkoutEndpoints
         builder.MapPost("/workouts", Record)
             .WithName("Record")
             .WithOpenApi()
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireRateLimiting("create-or-refresh");
         builder.MapGet("/workouts", GetAll)
             .WithName("GetAll")
             .WithOpenApi()
@@ -47,7 +48,8 @@ public static class WorkoutEndpoints
             // https://github.com/dotnet/aspnetcore/issues/47526
             //.WithOpenApi()
             .RequireAuthorization()
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequireRateLimiting("create-or-refresh");
     }
 
     private static async Task<Results<Created<CreatedWorkoutDto>, BadRequest, ValidationProblem>> Record(
